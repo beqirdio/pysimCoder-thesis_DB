@@ -1,2 +1,388 @@
 \chap Vector support
 
+
+
+
+\sec Vectors in Control Systems
+
+\qquad As remembered from any elementary mathematics or physics class, a "vector" is a directed line segment.
+Usually a vector can be visualized on a line, a plane, or a space, otherwise known as the three spatial
+dimensions. In other words, a vector is a set of numbers, which represent a line with a direction in an
+N-dimensional space (see Fig. 3.1). Although vectors can have a finite or infinite number of dimensions, they
+have already played a significant role in mathematics and physics even with only the three spatial dimensions
+that we are closely familiar with. The uses of vector mathematics reach wide across many fields of science,
+such as classical mechanics, astrophysics, electronics, and many others.\cite[linear-alg-book] Included here
+is also control engineering, which uses vectors for many of its mathematical operations.
+
+\medskip \clabel[vector-in-space]{Vector represented in 3D space}
+\picw=6cm \cinspic figures/vector3d.png
+\caption/f Visualization of a vector in a 3-dimensional space (x,y,z axes). The point P represents the 
+direction of the vector, and contains the magnitude as well.
+\medskip
+
+\quad In order to design and analyze control systems, quantitative mathematical models of these systems must
+be obtained. This condition is true independently of the type of dynamic system in question. The mathematical
+model of the dynamic system is initially expressed as a set of differential equations, and then usually (but
+not always) linearized for further use with the Laplace transform. The Laplace mathematical tool is then able
+to obtain a solution of these linearized differential equations, and ultimately describe the operation of the
+system.[\rcite[cntrl-sys-book], chapter 2.1]
+
+\quad Once the mathematical model is simplified with the use of transfer functions (obtained from Laplace),
+the input-output relationship can be described. This function is especially useful when wanting to represent
+the system as a block diagram schematic (see Fig. 3.2). The blocks are unidirectional and operate based on
+the transfer function of the variables to be controlled.[\rcite[cntrl-sys-book], chapter 2.6]
+
+\medskip \clabel[block-diagram-control]{Block diagram schematic for control system}
+\picw=10cm \cinspic figures/feedback_control-sys.png
+\caption/f Example of usage of block diagram schematics for representation of a closed-loop feedback
+control system. 
+\medskip
+
+\quad Nowadays all the graphical
+tools for control systems are based on this concept, and many of them use vector signals for operation of
+their blocks. PysimCoder also uses vectors (and matrices) for many of the mathematical operations necessary
+for the simulation of a control system, however before my implementation covered in the next sections of this
+chapter, it did not support the use of vector signals as inputs or outputs of a block. This is a feature that
+would greatly improve the application, since it can can simplify the diagram appearance, and it could better
+utilize many of the mathematical tools needed for controlling a dynamic system.
+
+\quad Simulink already supports vector signals both in the graphical editor and in the C-code generation tool
+(SimulinkCoder). The "Constant" block has the ability to produce a single number, but also a vector or matrix.
+This block can be used to generate a pure vector signal which is constant on its output. There is also a
+"Mux" block \cite[simu-mux] which can combine input signals into a vector, and also its inverse "Demux"
+\cite[simu-demux] which extracts each element from the vector signal and outputs them individually. These
+blocks can be used in combination with other blocks which may have vectors as an input or output of their
+operation. Simulink only has a handful of "pure" vector blocks, including "Mux" and "Demux". Most of the other
+blocks support single-data signals, as well as vectors on top of that, if the input is given as such.
+
+\quad Many of the same blocks mentioned above that are used in Simulink can be emulated in pysimCoder. Therefore,
+for the purpose of testing and experimenting with vector signals for the first time in pysimCoder, I have used
+the same concept of these blocks. I started with a "Constant Vector" block, which could create a pure vector
+signal, together with a "Print Vector" block to print the signal on the terminal. After that I proceeded with
+creating the "Mux" and "Demux" blocks, since they will be able to convert vector signals into its individual
+elements, and back. This can create an interface between the vector blocks and the "normal" blocks. The
+approach to this will be covered in the next sections of this chapter.
+
+
+
+\sec Basic implementation of vectors in pysimCoder
+
+
+\secc Method of approach
+\qquad Although pysimCoder did not have vector support before this implementation, it did have a framework for
+enabling the dimensions of a block. By creating new pysimCoder blocks which utilize this ability to carry
+input and output dimensions, I will be able to test the processing of vectors in the C-function level. In order
+to achieve this I will have to make changes in the source of the code generation tool, as well as adding blocks
+in a new "Vectors" library. For initial simplicity, the dimensions will be set as a block parameter from the user.
+The automatic setting of dimensions will be covered later, in the next section of this chapter.
+
+
+\secc Changes in Python source and generated C-code
+\qquad Before trying to create the new blocks for testing vector signals, first the source of the pysimCoder
+project must have the ability to enable vectors for these blocks. By making some minor changes to the block
+representation object, as well as the code generation process, the new blocks will then be able to read
+their own dimensions in order to properly process the input data.
+
+\quad To better understand where to make these changes, I will refer to the main elements of a pysimCoder
+block from chapter 2: the .xblk file, .py file, and .c function. In fact, these elements follow a strict
+hierarchy of representation of a block, as seen in the image below.
+
+\medskip \clabel[pysimCoder_block_files]{Necessary code/files for pysimCoder block}
+\picw=12cm \cinspic figures/pysimC_block_dep.pdf
+\caption/f The supporting files for a pysimCoder block are shown. The green arrows represent which file contains
+the specification of the next file or function to be called. The orange arrow shows the switching of block
+representations. The general direction of both arrows show the hierarchy of the code dependencies of the block.
+\medskip
+
+\quad On the GUI level, the block is initially
+represented in the same format as the .xblk file, otherwise known as the JSON format (although there is no
+JavaScript involved). The corresponding Python function specific to the block is then called with all the
+information contained in the JSON, and will ultimately create a Python class called "RCPBlk". This class
+is the next level of representation, and it will be used while pysimCoder is generating the C-code. When
+Python is generating the code, it will use each RCPBlk object to initialize the block on the C-code level.
+To do this it will pass all of the block information to a C-structure called "python_block", which will
+enable all the written C-functions of the block to utilize its own properties for correct functioning
+of the code. This C-structure is the last level of representation, and is the only format needed
+for running of the code on the target. In other words, the other formats only serve to generate this final one.
+\cite[pysimcoder-book]
+
+\quad So all these representations seem to be carrying the block information, and the last two already have
+some form of support for dimensions of input/output signals. They are seen in the code below, where both of
+them have the variables already made to carry dimension data.
+
+\begtt
+...
+typedef struct {
+  int nin;             /* Number of inputs */
+  int nout;            /* Number of outputs */
+  int * dimIn;       /* Port signal dimension */
+  int * dimOut;      /* Port signal dimension */
+  int *nx;             /* Cont. and Discr states */
+  void **u;            /* inputs */
+  void **y;            /* outputs */
+  double *realPar;     /* Real parameters */
+  int *intPar;         /* Int parameters */
+  char * str;          /* String */
+  void * ptrPar;       /* Generic pointer */
+}python_block;
+\endtt
+
+\quad For "python_block" there is nothing to change,
+however in the RCPBlk object, all of the dimension information seems to be defaulted to "1" for all inputs
+and outputs. This is the first change to make, so that when the RCPBlk is called from the block's Python
+code, the dimension will pass from the user's input to the "python_block". Otherwise it would just default to
+"1", making vectors impossible to use here.
+
+\begtt
+...
+        self.name = None
+        self.fcn = fcn
+        self.pin = array(pin)
+        self.pout = array(pout)
+        self.dimPin = ones(self.pin.shape)
+        self.dimPout = ones(self.pout.shape)
+        self.nx = array(nx)
+        self.uy = array(uy)
+        self.realPar = array(realPar)
+        self.realParNames = []
+        self.intPar = array(intPar)
+        self.intParNames = []
+        self.str = str
+...
+\endtt
+
+\quad After that is settled, the block can then take a dimension as an input parameter from the user, and pass
+it on to the other representations. This is key to the whole feature, since now I will be able to show how
+the source code can use this information in order to create actual memory space for the signal.
+
+\quad In pysimCoder, the main file which deals with code generation is "RCPgen.py". In that file is where all
+the blocks of the simulation are gathered and interconnected, and then generated as C-code. The tool uses the
+"RCPblk" objects of each block in order to propagate the information to the "python_block" structure. The
+blocks are interconnected using "nodes". A "node" in terms of pysimCoder is a connection between an output of
+a block, and the inputs of one or many other blocks. The node will carry the values from one block to another,
+however the source only generates one value per node. This is another barrier preventing the program from
+enabling vector support, and it is the next change to be made to prepare the blocks for using vector signals.
+
+\quad In the current version of RCPgen.py, it seems that there is only one value given for each node. This
+setup will not allow any vectors to be generated or used, therefore a short algorithm will be developed to set
+the correct array space for each node. Generally the nodes must be as large as the inputs and outputs it is
+connected to, so the array length of each node can be set by either one. Considering this fact, the algorithm
+will simply go through each block's output, find the dimension of that output, and then append this value to a
+list which will hold all the nodes' dimensions. Then later on when the nodes are being initialized in C-code,
+the array length will be set based on the dimension found in the list. The application of this small algorithm
+will allow the generated C-code to propagate vector values, since it now has memory space to do so. 
+
+\secc New blocks for vector testing
+
+\quad After the changes made to the source as explained above, the new vector blocks will finally be able to
+pass vector signals and use their dimensions for the correct functioning of the C-code. The first vector block
+to create will be the "Constant" block, as seen in Simulink. This will be able to create a vector output signal
+based on the input array given from the user. Then to test if the vector signal is actually passing correctly,
+there is a need for a "Print" block which will be specific to printing vector signals as an array on the main
+terminal of pysimCoder. These two blocks will become the first experiment on vector signals.
+
+\quad The next blocks to be created will be related to mathematical operations on vectors. The "Gain" block
+takes each element of the input vector and multiplies it by the factor given by the user. In fact the "Gain"
+block already existed in pysimCoder, however it has never been used with vectors as its input. Then two very
+simple arithmetic operations will be implemented for vectors: summing and subtracting. Describing what they do
+is somewhat redundant, however it's worth noting that the input vectors of both blocks must be of equal
+dimension for correct operation. By refining these blocks, I will be able to prove that vectors can be passed,
+and processed in a mathematical way.
+
+\quad Finally there are two very important blocks which have a special role with vectors in a block diagram
+schematic. These are the "Multiplexer" and "Demultiplexer" blocks, otherwise known as "Mux" and "Demux". "Mux"
+is responsible for generating a vector from many single inputs, while "Demux" breaks down the vector into many
+single outputs. This functionality will be especially useful in the future, when "normal" blocks want to
+interact with "vector-able" blocks.
+
+\quad These are all of the vector blocks that have been crafted for the purpose of testing vectors in
+pysimCoder. It is worth mentioning that some blocks are able to know their dimension even without any user
+input. If the dimensions can be found using some mathematical relation, then it can be passed automatically
+from the Python file which calls RCPBlk. Otherwise, the dimension will have to be given explicitly from the
+input parameters of the block, therefore it will pass first from the .xblk representation. In the next section
+I will explain my extended implementation of vectors, where all the dimensions are set automatically by an
+algorithm, and no user input is needed.
+
+\secc Demonstration of basic vector support (static dimension setting)
+
+\qquad To demonstrate the functionality of the first vector feature in pysimCoder, I have prepared some
+short examples which are using vector blocks. The first figure below showcases the usage of blocks
+with mathematical operations (subtraction, sum, gain) on vectors. The vector is summed with itself,
+and then subtracted by itself, and finally amplified by a gain of 10. The output is shown in the terminal,
+found in the bottom right corner of the figure. The result should be the same vector, multiplied
+by 10 (the gain). On the left of the terminal, there is also a small window where the setting of the
+dimensions can be seen. Further to the left is the Library, where all the vector blocks can be
+dragged and dropped to the diagram.
+
+\medskip \clabel[vectors-math-demo]{Math operations on vectors in pysimCoder GUI}
+\picw=14cm \cinspic figures/vectors_math_demo.png
+\caption/f Diagram demonstrating usage of mathematical operations on vectors in pysimCoder. Dimensions here
+are set statically from the user input, as seen in the small window to the left of the terminal output.
+\medskip
+
+\quad In the next figure, there is a very insightful example, which involves the Mux and Demux blocks.
+Since the two are an inverse to each other, it is possible to connect them to each other, and get the same
+result from which it started with. Although this seems redundant in a real-life engineering situation, it is
+in fact a helpful test to see if the two blocks work correctly. As seen in the figure below, the diagram
+starts with a vector, gets broken down by Demux, and then recollected with Mux. Then the signal is printed
+on the terminal, and the vector appears to be the same as the input given for the Constant block. This result
+means that everything is working correctly. The diagram can also be reversed (Mux-Demux), but then the
+general Constant and Print blocks would be used instead of the new vector versions.
+
+\medskip \clabel[vectors-v1-demux_mux]{Demux-Mux test in pysimCoder GUI}
+\picw=14cm \cinspic figures/demux_mux_demo.png
+\caption/f Example using Mux and Demux blocks to test each other, as seen from the pysimCoder GUI and
+terminal. The result of the Print block should be the same as the vector from the Constant block.
+\medskip
+
+
+
+\sec Vectors with dynamic dimension-setting algorithm
+
+\secc Method of approach
+
+\qquad In the initial functionality made for vector support, all the dimensions were either set manually,
+or set automatically from their internal properties. In this section I will cover the automatic setting of
+dimensions for all blocks which cannot know their dimensions by their own. 
+
+\quad To do this, I will create an
+algorithm which will find each of these blocks, and set their dimensions based on the output of the
+preceding block. The detection and setting of dimensions must happen during the code generation process.
+By implementing this algorithm, the dimensions will not be passed as integer parameters anymore, but will
+use the appropriate variables for dimensions of input and output seen in the "RCPBlk" object class, and the
+"python_block" C structure.
+
+\quad It is worth to be noted that there are many approaches to setting dimensions automatically in a block
+diagram schematic which supports vectors. However, for the purpose of showcasing an experimental version
+which works with the previously working setup of the vector feature, I have chosen the above methodology.
+In the future I hope that pysimCoder developers including myself will use this proof as a motivation for
+a more general and organic solution for this feature.
+
+
+\secc Development of Algorithm
+
+\qquad As seen in the last section, some vector blocks seem to know their dimensions internally, such as
+"Constant", "Mux", and "Demux". The first two of these also seem to be generating a vector output. For the
+purpose of the explanation of this dimension setting algorithm, I will denote these two blocks as "Source
+blocks". It is important for this implementation that the "source blocks" always know their dimensions
+internally, since their dimensions will be passed on down the line.
+
+\quad Other blocks, which previously needed their dimensions to be specified, will then be split into two
+groups. The "middle blocks" are vector blocks with both input(s) and output(s), while the "destination
+blocks" are those with only vector input(s). Since the latter only have input signals, then they can simply
+inherit the dimension from the output of the preceding block. However for the "middle blocks", there is also
+the setting of the output signal dimensions, which will need further processing.
+
+\quad To find a way to set the output dimensions of a "middle block", each input/output relationship
+must first be investigated. In the best case scenario, the output signal would inherit the dimension from
+the corresponding input signal, assuming a 1:1 mapping of dimensions. In this case, all the middle vector
+blocks which were previously created (see section 2 of this chapter) have a 1:1 ratio of input/output
+dimensions, which will make the processing much easier. Nevertheless the chance of having a different
+ratio when working with vectors in the future is quite high, therefore I have ensured to leave a framework
+for making blocks which have a more complicated I/O relationship. 
+
+\quad To describe the I/O relationship of a block on a mathematical level, I will use the notion of the
+"dimension ratio". In other words, this is the ratio between the input dimension and the output dimension.
+Just earlier it was mentioned that the current "middle" vector blocks all have a 1:1 ratio, which means that
+the value of the input dimension will be equal to the value of the output dimension. In other cases, the
+output dimension would have to be multiplied by some factor in order to achieve a natural number. This is
+the exact reason why I have decided to make a new parameter in the RCPblk class by the name of "dimRatio".
+This parameter will hold the information of the I/O dimension ratio, ultimately guiding my new algorithm on
+how to set its output dimensions. 
+
+\medskip \clabel[pysimCoder_auto_dimensions]{Algorithm for automatic setting of dimensions of vector blocks}
+\picw=13cm \cinspic figures/pysimC_dim_auto.pdf
+\caption/f Flowchart explaining the path to setting dimensions automatically for vector blocks which
+previously needed input. Chart is divided in two parts: the left shows the setting of middle block dimensions,
+while the right is for the destination blocks. The first element of the flowchart is on the top left.
+\medskip
+
+\quad Now I will proceed to explain the inner workings of the dimension setting algorithm for vector blocks,
+using the flowchart given above (see Fig. 3.4). The first part of the algorithm will be dealing with the
+middle blocks, as seen in the left half of the diagram. Once that part is resolved, the algorithm can then
+continue to process the destination blocks. This has to happen in this order since the destination blocks
+usually get their dimensions from a middle block. 
+
+\quad Initially the middle blocks must be found and accessed (Steps 1 and 2). Then the program must iterate
+through all the inputs of that block, and proceed to find the "parent" block which contains an output
+connected to the current input selected (Steps 3,4,5). This input will then inherit its dimension from the
+corresponding output of the parent block. The output signals of the middle block on the other hand,
+will be based on the dimension ratio parameter contained in the block (Step 6). If all the inputs have been
+dealt with, the algorithm will then move to the next phase, involving the destination blocks.
+
+\quad For the destination blocks, the same idea will be applied as for the middle blocks. The main difference
+here, will be that for destination blocks there are only inputs. This means there is no need for any dimension
+ratio to help select an output dimension, since there are no outputs. Therefore the inputs of the block will
+simply inherit their dimension from the parent block's output, and the algorithm will be done (Steps 8-13).
+Most of the steps are identical as for middle blocks, except for Step 9 and 11.
+
+\quad Although the flowchart seems a bit complex, the idea behind the algorithm is not so hard to understand.
+The goal is to propagate all the vector dimensions, from a "source block", through the "middle blocks", and
+onto the "destination blocks". To do this the algorithm simply goes to each middle block, sets the dimensions
+based on the block preceding it, and then continues to do the same for all the destination blocks. Also, it is
+very important that there is a source block preceding all the other ones, and it must have static dimensions
+which were set internally.
+
+
+\secc Changes in source code
+
+\qquad After understanding the core logistics of the dimension setting algorithm, a decision must be made on
+where to apply the algorithm, and what other changes must be made. The main changes in the source code will
+be related to the code generation process, and also to the block definitions of the vector-enabled blocks.
+Before I explain my choice, it is worth noting that there are many places in the source where the algorithm
+can be implemented. The only condition is that it is done before the variables of the dimensions are
+initialized in the code generation process.
+
+\quad Most of the C-code writing that pysimCoder does is occurring in "RCPgen.py", from the "supsisim"
+toolbox (see chapter 2.2.2). Therefore this file in a way would be the first place to put the algorithm,
+right before the variables of the dimensions and the nodes are initialized in the C-code. Although
+this placement works and is more direct in terms of implementation, other methods should be considered for
+the future. For example it can also be written as a function, and imported externally for this feature, in
+order to shorten the code in "RCPgen.py". Another consideration would be to apply the algorithm on the GUI
+level. This could be handy for seeing all the dimensions before the code is even generated.  Nevertheless,
+the first option has been chosen as a testing ground for the more advanced versions to come.
+
+\quad In order for the algorithm to function, it needs to be able to interact with a parameter used for the
+dimension ratio, which describes the I/O relationship of the vector block. This parameter will be called
+"dimRatio", and it will be placed in the "RCPblk" class. The reason for this placement in the block
+representation hierarchy, is the fact that the algorithm itself is placed in the RCPgen.py file, as mentioned
+above. The dimRatio will be a list with two elements, representing the ratio. The first element is the 
+numerator, and the last is the denominator. In future implementations, the algorithm must be able to use this
+parameter for all types of ratios that could occur. However, for the current blocks which are contained in
+the "Vectors" library, there are only 1:1 ratios used (as seen in last subsection). For the "destination
+blocks", who don't have any outputs at all, I will use the 0:0 ratio, so that the algorithm can know how to
+process it.
+
+\quad For the blocks to be able to adapt to these changes in  RCPblk and RCPgen, all of the block file
+dependencies must be changed. First the input parameter must be removed from the .xblk definition, so that
+the user will not be able to input any dimension manually. Then the "dimRatio" variable must be enabled in
+the .py file of the block, and set to the corresponding ratio involved. Then the C function will also be
+changed, so that all the functions of the vector blocks will be using the "dimIn" and "dimOut" variables
+defined in the python_block structure. Previously the blocks were using the "intPar" to pass the dimensions
+in the C-code level, however after the next changes that will be mentioned below, all the blocks will be able
+to read their dimensions from the newly enabled variables.
+
+\quad I will finish this subsection by mentioning the other changes that were made in RCPgen.py. After the
+algorithm achieves its goal, the variables in the main C file which will hold all the dimension values will
+then be initialized. The nodes variables will also be initialized with the correct length of array (as seen
+in section 2 of this chapter), however this time it will simply read the dimension from the node output
+and directly use that value. In the first implementation of vectors, these values were buffered through a
+Python list. Last but not least, the python_block structures given for each block in the diagram will then
+take the values from the aforementioned dimension variables, and pass them onto the structure's internal
+dimension variables (dimIn/dimOut).
+
+
+\secc Demonstration of automated dimension setting
+
+\qquad Since most of the changes in this section had no effect on the GUI, I will show a very similar
+demonstration to the first one seen in the basic vector implementation (from previous section). The difference
+here will be that there is no input dimensions given. If the output on the terminal is correct mathematically,
+and there are no other errors, then the algorithm has proven itself to work. This proof can be seen in the
+figure below, however this is a best-case scenario situation. In more complex diagrams there could be some
+issues.
+\medskip \clabel[vectors-v2-demo]{Vector blocks with dimensions set automatically}
+\picw=14cm \cinspic figures/vectors_v2_demo.png
+\caption/f View of diagram with mathematical blocks which previously needed dimensions as input parameter,
+but is now solved automatically from the new algorithm. The result seen on the terminal output is correct,
+therefore the algorithm has succeeded (since no dimensions were given before).
+\medskip
