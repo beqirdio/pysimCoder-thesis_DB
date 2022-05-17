@@ -1,0 +1,160 @@
+\chap Testing and extending NuttX RTOS support in pysimCoder
+
+
+
+
+\sec NuttX RTOS
+
+
+
+\secc Introduction
+
+\qquad NuttX is a real-time embedded operating system (RTOS) designed for high scalability,
+small footprint, and standards compliance. It supports architectures from 8-bit to 64-bit,
+and is compliant with the POSIX and ANSI standards. Although NuttX tends to be very small,
+it is still very rich with features. This is possible since the final build of NuttX will
+only import the configured features, leaving all the unused ones out. \cite[nuttx-about]
+
+\quad The main supported CPU architectures can be seen below, while the full list and details
+can be found online in the NuttX documentation \cite[nuttx-support]. RISC-V will be of high
+interest for the scope of this thesis, therefore its support on NuttX will be crucial to the
+rest of this chapter.
+
+\begitems
+\style 0
+* ARM
+* Intel
+* RISC-V
+* Atmel AVR
+* Freescale
+* Microchip
+* Xtensa LX6
+\enditems
+
+\quad As can be noticed from the NuttX documentation online, there is a
+very long list of supported features. This raises the question of how it can be so small,
+and still have all these features available. Although there are a lot of files in the NuttX
+source code, the code contained inside is usually very short and compact (sometimes just a
+few lines). This in combination with linking from "static libraries" can ensure that NuttX
+can simply exclude the code which is not necessary for the current build, which ultimately
+makes the OS much smaller. \cite[nuttx-about]
+
+\quad Another trick to keep NuttX tiny is by using "configuration files". In this file all
+the features can be enabled or disabled depending on the project requirements and limitations.
+Additionally, the GNU toolchain supports "weak symbols", which help to keep the size of NuttX
+down. \cite[nuttx-about]
+
+\quad It is worth mentioning that NuttX OS is a completely free software, shared online with
+a non-restrictive Apache license. The source code can be found on a Github repository
+\cite[nuttx-source], and the true open-source nature of NuttX even allows for anyone to add
+their own support on the project, either locally on their computer, or uploaded to the online
+repository. 
+
+
+\secc Existing support in pysimCoder
+
+\qquad In pysimCoder, there is already existing support for NuttX targets. This means that any
+microcontroller running NuttX, can also execute binary code generated from the pysimCoder
+application. That is an amazing feature, since for most use cases pysimCoder has hardware
+blocks which are specific to a certain microcontroller or architecture. In the NuttX blocks,
+the code will be identical no matter what CPU brand is used. 
+
+\quad NuttX has many features involving the manipulation of hardware peripherals, therefore
+these functions can be used as pysimCoder blocks. In fact there is already some blocks made
+for NuttX, such as an ADC, DAC, Digital Input/Output, Encoder, PWM, and a DHTXX sensor. Some
+general pysimCoder blocks can also be used, including the TCP, UDP, UART, and CAN communication
+protocols. \cite[nuttx-pysim]
+
+\quad Although the NuttX blocks will generally work for any NuttX supported microcontroller,
+there is still some specification involved in the "configuration file". As mentioned earlier,
+the RTOS uses configuration files for setting up the system so that it doesn't include any
+redundant code in the final compilation. The configuration of NuttX should be set up not only
+to specify the hardware being used, but also to set certain features that will make the
+compilation compatible with pysimCoder \cite[nuttx-pysim]. 
+
+\quad NuttX will use this configuration which was set up by the user, in order to compile
+only the necessary files. This compilation can then be exported to the pysimCoder source,
+and then utilized by the NuttX blocks appropriately. So the various hardware support of NuttX
+can in fact be propagated to pysimCoder, however this must be configured by the user externally.
+The full configuration and steps can be found in the online documentation for pysimCoder with
+NuttX \cite[nuttx-pysim].
+
+
+
+\sec ESP32C3 board with NuttX
+
+\qquad It would be of good interest to the pysimCoder project to somehow test a microcontroller
+which uses the RISC-V architecture. NuttX already has support for a board with this architecture,
+therefore the hardware can be easily implemented in pysimCoder. The following section will
+describe the simple testing and configuration of the selected hardware, both in NuttX and
+pysimCoder. 
+
+
+\secc Hardware introduction
+
+\qquad One of the RISC-V boards which is supported in NuttX is the ESP32C3 produced by the
+Espressif company. Fortunately, the Espressif representation in Brno (Czech Republic) was kind
+enough to provide my supervisor with some of these boards for the purpose of student research.
+
+\quad The specific hardware provided is the "ESP32-C3-DevKitM-1" (see Fig. 5.1), which is an
+entry-level development board popular for its small size and vast IoT capabilities. It is based
+on the "ESP32-C3-MINI-1", a module which contains a whole system, including the CPU, the memory,
+the WiFi and Bluetooth antenna, and many more supported peripherals. The specifications of the
+hardware can be seen below, while the full details can be found online. \cite[esp32c3-devkit]
+\cite[esp32c3-datasheet]
+
+\medskip \clabel[esp32c3-board]{ESP32C3-DevKitM-1 board presentation}
+\picw=14cm \cinspic figures/esp32c3-devkit-board.png
+\caption/f The different components of the ESP32C3-DevKitM-1 board are presented with labels.
+On the left is the main chip, while on the right is the micro-USB connection. The pin headers
+can be found on the top and bottom. Other components include RGB LED, Reset and Boot buttons,
+5V to 3.3V LDO and more. 
+\medskip
+
+\begitems
+\style 0
+* ESP32-C3FH4 or ESP32-C3FN4 embedded, 32-bit RISC-V single-core processor, up to 160 MHz
+* 384 KB ROM
+* 400 KB SRAM (16 KB for cache)
+* 8 KB SRAM in RTC
+* 4 MB embedded flash
+* Wi­Fi - IEEE 802.11 b/g/n-compliant, 2412 ~ 2484 MHz
+* Bluetooth® - Bluetooth LE: Bluetooth 5, Bluetooth mesh, up to 2 Mbps
+* 40 MHz crystal oscillator
+* GPIO, SPI, UART, I2C, I2S 
+* Remote control peripheral
+* LED PWM controller
+* General DMA controller
+* TWAI® controller (compatible with ISO 11898-1)
+* USB Serial/JTAG controller
+* temperature sensor
+* SAR ADC
+\enditems
+
+\quad Considering the very small size of the board, its extensive support of various
+peripherals is impressive. This makes the board very useful in different types of
+applications, such as for home automation, industrial automation, smart agriculture,
+consumer electronics, health care etc. I hope that by implementing this board in
+pysimCoder, it will become apparent that my project will fall in the category of
+educational automation. This is one field that was not yet mentioned as an example in the
+datasheet of the device. \cite[esp32c3-datasheet]
+
+
+\secc Installing NuttX RTOS on board
+
+
+\secc Enabling and testing pysimCoder on board
+
+
+
+\sec Demonstration of control using ESP32C3 with NuttX
+
+
+\secc Hardware requirements
+
+
+\secc Translation of RaspberryPi project
+
+
+\secc Example of real usage
+

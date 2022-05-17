@@ -1,0 +1,458 @@
+\chap Extending support of LinuxOS/GNU targets in pysimCoder
+
+\qquad As mentioned in chapter 2, pysimCoder can generate code for many different real-time
+operating systems. One of the main goals of this thesis is to add support for different
+boards which support Linux/GNU OS. Therefore this chapter will cover all the support added
+for the Xilinx Zynq based boards, and also the extension of support for the RaspberryPi boards.
+
+
+
+
+\sec Zynq based board on pysimCoder
+
+\qquad In the following section I will describe how the first implementation of a Zynq target
+has been achieved. Most of the code is based on an existing Simulink project, and then adapted
+for deployment in pysimCoder. 
+
+
+\secc Hardware introduction
+
+\qquad The MZ_APO educational kit is a microcontroller unit based on the Zynq-7000 SoC family,
+designed by Ing. Petr Porazil at PiKRON sro. The board offers many peripherals and interfaces,
+which is why it is used as an educational tool for many courses in CVUT such as Computer
+Architectures, Advanced Computer Architectures, and Real-Time Systems Programming. It uses the
+ARM architecture, and supports Linux/GNU as its operating system. The details of the board are
+presented below (full details found at \cite[mzapo-datasheet]).
+
+\begitems
+\style 0
+* Base Chip: Xilinx Zynq-7000 All Programmable SoC
+* Type: Z-7010, part XC7Z010
+* CPU: Dual ARM Cortex ™ -A9 MPCore ™ @ 866 MHz (NEON ™ & Single/Double Precision Floating
+Point)
+* 2x L1 32 kB data + 32 kB instruction, L2 512 KB
+* FPGA: 28K Logic Cells (~ 430K ASIC logic gates, 35 kbit)
+* Computing units in FPGAs: 100 GMACs
+* FPGA memory: 240 KB
+* Memory on MicroZed board: 1GB
+* Operating system: GNU/Linux
+* GNU LIBC (libc6) 2.19-18 + deb8u7
+* Linux kernel 4.9.9-rt6-00002-ge6c7d1c
+* Distribution: Debian Jessie
+\enditems
+
+
+\medskip \clabel[mzapo-board]{MZ_APO Educational Kit Zynq based board hardware}
+\picw=6.5cm \cinspic figures/mzapo_board.png
+\caption/f The hardware design of the MZ_APO kit is presented. Some main peripherals
+that can be noticed easily are the LCD screen, three rotary knobs, GPIO pins, LEDs,
+and the interfaces on the edges of the board. It is commonly used as educational kit
+for some courses in the Czech Technical University and was designed by Ing. Petr Porazil
+\cite[mzapo-datasheet]
+\medskip
+
+
+\quad To interface with the device, many common slots are supported such as USB-A, Gigabit
+Ethernet, UART1 serial port and even a slot for microSD card storage. The peripherals
+included on the board are various, as can be seen in the list below (full list at
+\cite[mzapo-datasheet]).
+
+\begitems
+\style 0
+* Small 16-bit parallel bus connected LCD display (480× 320, RGB 565)
+* 32 LEDs for direct visualization of 32-bit word (SPI connected)
+* 2× RGB LED (SPI connected, 8-bit PWM)
+* 3× incremental encoder rotary knob (RGB 888, SPI connected)
+* 1× 40 pin FPGA IO connector, 36 FPGA 3.3 VDC signals, jumper enables +5 VDC power,
+signals match Altera DE2 kits
+* 2× PMOD connectors extended by optional +5 VDC power,
+each provides 8 FPGA signals shared with FPGA IO connector
+* 2× parallel camera interface, one 10-bit and one 8-bit
+* audio output by simple PWM modulator, on-board speaker and JACK available
+* audio input to Xilinx integrated ADC, on-board microphone and JACK
+\enditems
+
+\quad Many of the peripherals above can be implemented in pysimCoder as blocks, however
+for the scope of this thesis I will be working with the rotary knob "incremental encoders", 
+as well as the "PMOD connectors". These two peripherals are already implemented as Simulink
+blocks, as it will be presented in the next subsection. 
+
+\quad The three incremental encoders are physical rotary knobs which can change values in
+an 8-bit field (from 0 to 255). These can be useful in pysimCoder for adding variability to
+a signal using some human input. The implementation will be covered in the next parts of this
+section. \cite[mzapo-datasheet]
+
+\quad The PMOD connectors are also of high interest for this thesis, as they will be the
+interface between the board and some DC motor. There are two of these slots, and they will
+in fact be connected to some DC motor driver, which will handle the actual output of the
+voltage on the motor. \cite[mzapo-datasheet]
+
+\secc Existing Simulink project
+
+\qquad Since pysimCoder and Simulink are very similar in the aspect of code generation, it
+is sometimes possible to translate blocks from one program to another. Thankfully, there is
+already a Simulink project which can generate real-time C code for controlling the
+peripherals of the MZ_APO educational kit. The source of these blocks can be found in a
+public online repository \cite[mzapo-simulink], and has been developed while using the
+"ert_linux" target for Simulink.
+
+\quad "Ert_linux" is a code generation target for Simulink which is specifically tailored
+for "preempt_rt" Linux distributions. The project offers an alternative to the existing
+Linux code generation targets offered by MathWorks which seem to have some shortcomings.
+The main advantage "ert_linux" has over the default  targets is that it uses 
+"clock_nanosleep" instead of POSIX timers, which results in better real-time performance
+in the "preempt_rt" Linux versions \cite[ert-linux-paper]. The source found in Github
+\cite[ert-linux-repo] consists mainly of the main program template and the Makefile template,
+both of which are analogous to the templates of pysimCoder used for generating real-time code
+meant to run in a Linux OS environment.
+
+\quad The "zynq-rt-control" project (also found in Github \cite[mzapo-simulink]) contains
+Simulink blocks and diagrams which are used for controlling the peripherals of the MZ_APO
+Zynq-based board. In order to use these resources to generate code however, it must use the
+"ert_linux" target for Simulink, since it was designed using this template. Before translating
+these blocks into the pysimCoder environment, it is important that the Simulink diagrams
+are tested and verified on actual hardware. In this case there are only two peripheral
+blocks used: knob input (incremental encoders), and DC motor (PMOD connectors). The rotary
+knobs are already embedded on the board, so that can be tested out of the box. For the
+testing of the other block, a DC motor and driver which connects to a PMOD connector is
+required. The proper connection of such a device will be presented at the end of this
+section.
+
+\quad From the "ert_linux" repository, it will be helpful to extract which cross-compiler
+must be used for generating code on the Zynq board. Then most of the C code needed for the
+peripheral control will be contained in the "zynq-rt-control" repository. By combining
+elements of these two projects, a similar implementation can be applied in the pysimCoder
+application. Therefore the work done on the projects above will be the base of my work
+on adding support for the MZ_APO educational kit.
+
+
+
+\secc Integration with pysimCoder
+
+\qquad In this subsection I will be explaining my approach to translating and integrating
+the Simulink projects mentioned above, into the pysimCoder environment. This will be the
+first implementation of a Zynq-based board, therefore a new template Makefile must be
+created, as well as new blocks with all their supporting files. 
+
+\quad To construct the template Makefile for a Linux target such as the MZ_APO kit, the
+same cross-compiler specified in the "ert_linux" project should be used. The rest of the
+structure of the Makefile will then be taken from the existing real-time Linux targets
+supported in pysimCoder (found in source path /CodeGen/templates/rt.tmf). The compiler
+specification will be switch from "gcc" to "arm-linux-gnueabihf-gcc", which ensures that
+the host will be able to compile binary code compatible with the Zynq based board.
+
+\quad Next the existing Simulink blocks must be translated into pysimCoder blocks.
+Fortunately, the C code functions which the two use are very similar. Although in Simulink
+there are many more functions, some of them are not related to the target manipulation,
+but are rather concerned with the simulation properties. The most relevant functions are
+presented below.
+
+\begitems
+\style 0
+* mdlCheckParameters()
+* mdlInitializeConditions()
+* mdlStart()
+* mdlOutputs()
+* mdlUpdate()
+* mdlTerminate()
+\enditems
+
+\quad On pysimCoder there are only four functions used \cite[pysimcoder-book], as presented
+in the list below. The first function (INIT) is related to the initialization of the block,
+and is analogous both to "mdlInitializeConditions()" and "mdlStart()" as seen above. The
+periodic task functions (OUT and STUPD) are then naturally related to "mdlOutputs()" and
+"mdlUpdate". Most of the core computation of the block will be implemented in these two
+functions. At the end there is the termination function (END), very obviously corresponding
+to "mdlTerminate()", which will handle the proper closing of the block functionality.
+
+\begitems
+\style 0
+* initialization function (INIT)
+* periodic task functions (OUT, STUPD)
+* termination function (END)
+\enditems
+
+\quad Considering the relations shown above, the source code included in the "zynq-rt-control"
+project can now be used for translation. The code from each function in Simulink, will be copied
+to the corresponding function in pysimCoder. Then the main changes which will occur will be
+related to the usage of parameters in the code. Both the "python_block" C structure, and the
+"RCPblk" class have variables for these parameters, as can be seen in chapter 3. Each parameter
+variable consists of a different data-type, therefore whatever parameter is used in the Simulink
+code, will have to be converted based upon its own data-type. Parameters in pysimCoder can be
+expressed as integers, real numbers, pointers, and strings. The last part of the translation will
+simply be to copy all the file dependencies which are specified at the header of the C file.
+
+\quad With the C functions all translated, a new folder will be created for the MZ_APO support,
+located in the "pysimCoder/CodeGen/" directory. Inheriting the structure from the other targets,
+all the .c files will be contained in a "devices" folder, the .h files in "include", and the
+compiled libraries in "lib". All the file dependencies for this implementation can be found in
+the "zynq-rt-control" source \cite[mzapo-simulink], and don't need any modifications. 
+
+\quad To complete the integration of this project in pysimCoder, the supporting .xblk and .py
+files must also be created for the new blocks. The properties of these block representations
+will be set based on similar blocks in pysimCoder, while the parameters themselves will be
+almost identical to the parameters used in Simulink. 
+
+\quad Two new blocks will be created using this approach, based on the blocks given in the
+"zynq-rt-control" \cite[mzapo-simulink] project. One will read the input given from the rotary
+knobs, and the other will control a DC motor. The results of this integration will be
+showcased in the following subsection. 
+
+
+\secc Demonstration of results
+
+\qquad To prove the functionality of both of the new blocks in one diagram, I have prepared a
+demonstration in pysimCoder. There will be two motors used, and one of them will be following
+the position of the other. The three rotary knobs embedded on the board will then be used to
+tune the values of the PID controller. All the hardware necessary for this demonstration is
+listed below, while the source code for running the example can be found in an online
+repository \cite[mzapo-dcpid-follower].
+
+\begitems
+\style 0
+* Host computer with pysimCoder installed
+* 1x MZ_APO educational kit
+* 2x DC motor for MZ_APO educational kit
+* 1x Ethernet Cable
+* 1x DC power supply (12-24)V 
+* 2x Coaxial male-male cables
+\enditems
+
+\quad First the MZ_APO kit must be connected to two DC motors using the PMOD slots. Then the
+three devices must be connected to the power supply in a daisy-chain pattern, using the two
+coaxial cables. Last but not least, the Zynq board must be connected to the same network as the
+host computer using an Ethernet cable. This will enable communication between the board and the
+host. The hardware setup can be seen in the image below. 
+
+
+\medskip \clabel[mzapo-dc-pid-hw]{Hardware setup for DC motor follower with PID on Zynq}
+\picw=14cm \cinspic figures/DC_PID_fllwr_mzapo.jpg
+\caption/f The two motors are connected to the Zynq board, while the knobs are used to tune the
+PID controller. Both the motors are in the same position, which is the desired output of this
+diagram.
+\medskip
+
+\quad With the hardware all set up, the diagram of the example can be opened (see Fig 4.2), and all
+the parameters can be edited as needed. There are three encoder blocks, and each one of them
+controls a different part of the PID controller. Although there exists a PID block in pysimCoder,
+the parameters can not be variably controlled by another block. Therefore each individual element
+of a PID controller has been deconstructed, and enabled for control by the knobs. One DC motor
+block is fed by a constant value, which will make it the controller motor. Another DC motor is
+connected on the input by the PID controller, and on the output as a negative feedback loop. 
+Naturally it will be seen as the controlled motor. The TCP block at the right most part of the
+diagram will then be used to propagate these signals to a TCP listener with graphing capabilities. 
+
+\medskip \clabel[mzapo-dc-pid-diagram]{PysimCoder diagram for DC motor follower with PID on Zynq}
+\picw=14cm \cinspic figures/mzapo_dcpid_demo.png
+\caption/f Three knob blocks control the PID values. One DC motor is fed by some constant value,
+while the other is connected in a negative feedback loop and controlled by a PID controller. The
+signals are sent through TCP for recording and graphing.
+\medskip
+
+\quad Finally the code can be generated, while the sending and execution of the binary on the
+Zynq board will be handled by the shell script file found in the online repository
+\cite[mzapo-dcpid-follower]. Inside this file are two commands as shown below, where the "HOST"
+and "TARGET" environment variables are referenced. These variables can be set through a terminal,
+or can be edited in the shell script itself.
+
+\begtt
+scp DC\_PID\_follower root@\$TARGET:/tmp
+ssh -t root@\$TARGET HOST=\$HOST /tmp/DC\_PID\_follower
+\endtt
+
+\quad Then the "RTScopy.py" program will be started, and the above script can be executed. Using the
+TCP block in pysimCoder, some select signals will be transmitted to the host computer, and visualized
+in a graph. The terminal commands for achieving this are below.
+
+
+\begtt
+\$ ./RTScope.py
+\$ ./DC\_PID\_follower-run.sh
+\endtt
+
+
+\sec RaspberryPi board on pysimCoder
+
+\qquad Raspberry Pi support on pysimCoder in fact already exists, however the translation of
+an existing Simulink project \cite[rpi-rt-cntrl] can be used as a stepping stone for demonstrating
+the usage of pysimCoder on an ESP32C3 board with NuttX RTOS (covered in the next chapter). Due to
+this fact, the steps for implementing extended support for a RaspberryPi target will be evidently
+shorter than the one for the MZ_APO kit.
+
+
+\secc Hardware introduction
+
+\qquad In the example from the "rpi-rt-control" project (available on Github \cite[rpi-rt-cntrl]),
+a RaspberryPi board can control a 3-phase permanent magnet synchronous motor (PMSM) using code
+generated by SimulinkCoder. The hardware necessary to test this example will be covered in the
+following text.
+
+\quad RaspberryPi is essentially a small computer or a microcontroller, which can interact with
+hardware peripherals for various types of projects. It's easy operation allows people of all ages
+and backgrounds to use it, making it a great asset for educational purposes \cite[rpi-mcu]. The
+main technical specifications of the device used in this project can be found in the list below,
+taken from the official RaspberryPi website \cite[rpi-2b], while the hardware itself can be seen
+in Fig.
+
+\begitems
+\style 0
+* A 900MHz quad-core ARM Cortex-A7 CPU
+* 1GB RAM 
+* 100 Base Ethernet
+* 4 USB ports
+* 40 GPIO pins
+* Full HDMI port
+* Combined 3.5mm audio jack and composite video
+* Camera interface (CSI)
+* Display interface (DSI)
+* Micro SD card slot
+* VideoCore IV 3D graphics core
+\enditems
+
+\medskip \clabel[rpi-board]{RaspberryPi Model 2B v1.1}
+\picw=11cm \cinspic figures/rpi-2b-v1.png
+\caption/f The physical appearance of the specific RaspberryPi used in the PMSM control
+demonstration for Simulink/pysimCoder. Produced in 2014, it is a Model 2B (v1.1).
+\medskip
+
+\quad Unfortunately a 3-phase PMSM cannot simply be plugged into this board and used out of
+the box. For this reason, additional hardware will be required, such as a 3-phase motor driver,
+and a FPGA expansion unit. Luckily, these devices have already been produced and provided by a
+Bachelor's thesis work done by Martin Prudek \cite[fpga-thesis]. Therefore this hardware can in
+fact simply be connected and used, especially for the purpose of motor control (see Fig 4.5).
+
+\medskip \clabel[rpi-pmsm-setup]{Hardware setup for PMSM control w/ RPi board}
+\picw=11cm \cinspic figures/rpi_pmsm.png
+\caption/f Hardware setup for motion control of 3-phase motor (PMSM) using RaspberryPi board
+and Simulink. The motor is connected to the motor driver, the FPGA board is fitted on top
+of the driver, and the RaspberryPi is connected to the expansion board with a HAT cable module.
+Note that the board in this picture is one model older than the one used in my implementation.
+\medskip
+
+
+\quad The motor driver board's main task is to connect all of the I/O cables of the motor to the
+expansion unit. This includes connections for the IRC, the Hall effect sensors, and the 3-phase
+windings of the motor. It will also serve as the power source of the motor and the boards
+attached to it, once it is connected to a DC power supply. Other components include an ADC,
+half-bridges, and current measurement signals.
+
+\quad Even with the current amount of hardware, the microcontroller unit still cannot be attached
+and used. This is due to the fact that the specific RaspberryPi board used for this example does
+not have any IRC input, and only contains one PWM output, making it unfit for motion control
+situations \cite[ert-linux-paper]. Fortunately, the FPGA expansion unit was specifically
+designed to act as a middle-man between the motor driver, and the pins of the RaspberryPi board.
+
+
+\quad Field programmable gate arrays (FPGAs) are semi-conductor devices which can (re)program
+configurable logic blocks in order to achieve a certain logical system design. The specific FPGA
+design for this example can be used in a few different modes. For example, one mode is used for
+motion control of a DC motor, where it converts the IRC signals, and switches PWM to be usable
+in both voltage directions. Then there is the mode relevant to this project, which will enable
+the motion control of a 3-phase motor. The fully described FPGA design can be found in Martin
+Prudek's Bachelor thesis \cite[fpga-thesis].
+
+\quad To communicate with the FPGA expansion unit, the RaspberryPi board will use its SPI pins.
+Then the source of the FPGA will be able to send and receive signals from the MCU to the motor
+driver successfully. In addition to this, the expansion unit also holds a DC voltage converter
+which will be able to give a stable 5 Volts that the MCU needs for operation, while the 3.3V
+pins of the MCU will route back to the expansion kit for operation of the FPGA circuitry. More
+details about this hardware setup and the PMSM Simulink example can be found online
+\cite[fpga-realtime].
+
+
+\secc Existing Simulink project and translation to pysimCoder
+
+\qquad As mentioned previously, I will use an existing project made for Simulink, in order to
+make a new block for PMSM control in pysimCoder. The files of interest for the following
+implementation can be found in the "rpi-rt-control" online repository \cite[rpi-rt-cntrl]. Only
+the files related to the PMSM motion control will be used, which include the block C file and
+its dependencies, as well as the Simulink diagram used for the control system.
+
+\quad For the conversion of the Simulink block to a pysimCoder block, the same approach from the
+previous section will be utilized.  The blocks of code will be extracted from each Simulink
+function and copied onto the corresponding pysimCoder function. Then all the parameters must be
+adapted to the python_block structure, and the supporting header files specified on the top of
+the C file. All the dependencies mentioned must also be copied onto the "devices" and "include"
+folders of the RaspberryPi target, in order to enable the proper compilation of the block's C
+code.
+
+\quad In this particular Simulink block, there are also vector inputs and outputs. To avoid
+possible issues, I have simply  split all these signals into individual inputs and outputs,
+rather than using the experimental vector feature in pysimCoder. This decision will ensure
+that the cause of some error message will more likely be related to the new code which was
+added.
+
+\quad A RaspberryPi target for cross-compilation is already supported in pysimCoder, and in
+fact there is already a whole library of blocks to generate code for these boards. Therefore,
+all the block related files (.xblk, .py, .c) which were adapted for the new PMSM block can
+simply be added to their corresponding folders. The C file in particular should also be
+compiled in its folder using the "make" command in a terminal, so that the code generation
+tool will be able to use the new block.  In other words, there is no need to create any folders,
+or to construct any Makefile templates.
+
+\quad There is also a Simulink diagram which can be used to test the functionality
+of the block on real hardware. The same principles of this diagram will be emulated in the
+pysimCoder environment, as it has all the blocks necessary to do so. The implementation will
+be covered in the following subsection. 
+
+
+\secc Demonstration of results
+
+\qquad To test whether the adaptation of the block has succeeded, a real-life example should be
+tested. Therefore all the hardware must initially be set up (as seen in Fig. 4.5), and a diagram
+in pysimCoder should be constructed to demonstrate the motion control of a 3-phase motor. 
+
+\quad Fortunately, most of the blocks used in the Simulink diagram, can also be found
+in the pysimCoder library. Nevertheless the diagram will be simplified and cut down so that only
+the necessary functions will be used. Some parts of the diagram in Simulink have a lot to do with
+graphing, however for the purpose of this demonstration only the signals of higher interest will
+be visualized.
+
+
+\medskip \clabel[rpi-pmsm-dgm]{PysimCoder diagram for motion control of 3-Phase Motor}
+\picw=15cm \cinspic figures/rpi_pmsm_dgm.png
+\caption/f PysimCoder diagram for control of 3-phase PMSM using RaspberryPi target. Design has
+similarities to the original Simulink diagram, however it has been reduced only to the necessary
+control signals and blocks.
+\medskip
+
+\quad The new RaspberryPi block has 6 inputs, and 7 outputs. The first three inputs will be the
+PWM signals being fed to the motor, while the last three inputs are "enable" signals (which allow
+usage of a certain PWM signal). Then on the first three outputs are measurements of the current
+output, one for each phase. The next three are outputs related to the IRC, and the last output
+will be for the HAL sensor measurements. 
+
+\quad The first three inputs of the PMSM block will be supplied by an "Inverse Clarke" math
+operation block, which is previously fed by an "Inverse Park" block. Into the latter, there will
+be one constant signal (zero for this case), one PID controlled signal, as well as a feedback signal
+from the processed HAL measurement. The pulse wave generator seen on the far left, will be the input
+for this control system, and it is subtracted with the IRC output before being fed to the PID
+controller. At the very right there is also a TCP block, which will transfer select signal data
+through a TCP/IP connection with the host computer. This connection can then be utilized by the
+RTScope.py program in order to graph all the incoming data points (same as done in last section).
+
+\quad With the diagram all set up, the C code can finally be generated. The binary will simply
+be transferred and executed on the RaspberryPi, considering all the hardware is connected properly.
+Although it is possible to interact with the board using the serial terminal, it is recommended
+to use an SSL connection instead. Therefore the RaspberryPi and the host must be connected to the
+same network (same as for the MZ_APO demonstration). On the host, the RTScope.py program must be
+started to enable the receiving and visualization of the incoming data. A preview of this example
+can be seen in Fig 4.7. 
+
+\medskip \clabel[rpi-pmsm-graph]{Graph of PMSM motion control example with RaspberryPi}
+\picw=15cm \cinspic figures/rpi_pmsm_graph.png
+\caption/f Graph showing select signals from the PMSM motion control example using the RaspberryPi.
+The vertical axis will be dimensionless, since the signals graphed do not have the same units or
+range of values for that matter. The horizontal axis represents time in seconds. This graph is a
+screenshot taken from the RTScopy.py program, and is only for testing purposes. 
+\medskip
+
+\quad The graph above is the result of the control system applied in the RaspberryPi board for
+motion control of a PMSM. In red is the input signal being fed to the system, while in green is the
+IRC position. It is clearly seen that the two signals are in sync when there is no disturbance to
+the system. However, as seen from the blue signal, once a disturbance is applied the controller will
+try its best to compensate. The IRC output seems to be slightly shifted to the right, however it
+still follows the same rate of change as given from the input signal. Once the disturbance is
+removed, the IRC immediately synchronizes with the input again. This is in fact the desired system
+response for this setup, therefore it has been proved that the new PMSM block has been successfully
+integrated into pysimCoder. 
