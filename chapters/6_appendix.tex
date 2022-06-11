@@ -1,1 +1,64 @@
 \app Source Code
+
+\qquad Here will be listed all the features added to the project, and a corresponding
+reference to the online contribution to the project on Github (if applicable).
+
+
+
+\sec Vectors
+
+\qquad The source code of the vector features are still in development, therefore they
+are located in my fork of the original "pysimCoder" project. The two branches are listed:
+
+\begitems
+\style O
+
+* Vector support with static dimension setting 
+\urlnote{https://github.com/beqirdio/pysimCoder/tree/vectors}
+
+* Automatic dimension-setting algorithm for vector support 
+\urlnote{https://github.com/beqirdio/pysimCoder/tree/vectors_v2_0}
+
+\enditems
+
+
+
+\sec Linux Targets
+
+\qquad For the two boards which were running GNU/Linux, the main contributions
+to the "pysimCoder" and "pysimCoder-examples" repositories are listed:
+
+\begitems
+\style O
+
+* New blocks (DC motor, encoder) and targets  for Xilinx Zynq based MZ_APO educational kit
+\urlnote{https://github.com/robertobucher/pysimCoder/pull/31}
+
+* Demonstration of PID controlled motor follower for MZ_APO educational kit in diagram
+\urlnote{https://github.com/robertobucher/pysimCoder-examples/pull/2}
+
+* New block (PMSM) for motion control using RaspberryPi target
+\urlnote{https://github.com/robertobucher/pysimCoder/pull/49}
+
+* Demonstration of PMSM RaspberryPi block in diagram (using TCP protocol)
+\urlnote{https://github.com/robertobucher/pysimCoder-examples/tree/main/Linux-mzapo/DCmotor}
+
+\enditems
+
+
+
+\sec NuttX Targets
+
+\qquad For the demonstration realized with the ESP32C3 board, a new block and diagram has been
+created for NuttX targets:
+
+\begitems
+\style O
+
+* New block (PMSM) for 3-phase motion control using NuttX
+\urlnote{https://github.com/robertobucher/pysimCoder/pull/49}
+
+* Demonstration of PMSM NuttX block in a diagram (using CAN protocol)
+\urlnote{https://github.com/beqirdio/pysimCoder-examples/tree/main/NuttX/3_phase_PMSM_control}
+
+\enditems

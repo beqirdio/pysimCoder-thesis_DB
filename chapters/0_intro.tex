@@ -1,1 +1,41 @@
 \chap Introduction
+
+\qquad Today we live in a heavily automated world, where almost every industry is reliant upon
+multiple complex control systems. In fact, the rate at which technology is developing is very
+related to our ability to control and automate the processes around us.  Considering the importance
+of this field, the need for more control tools and engineers is becoming apparent. At the time,
+there are already many tools which are used for designing real control systems, such as Simulink, XCos,
+LTSpice, OpenModelica, CODESYS, and many more.
+
+\quad Freely available and open-source programs are the future, therefore having control systems
+tools which meet these requirements is beneficial for industry, education, and enthusiasts. One
+program which complies with this idea is pysimCoder, a graphical control systems design tool which can
+generate code for microcontroller units. The application is far from its paid counterparts in terms of
+development. Nevertheless its open source nature allows anyone to extend the program, and is very useful
+for educational purposes. PysimCoder will be the heart of my thesis work, since the main goals are related
+to enhancing and extending the features of the tool. The full description of the application and its
+source code can be read in chapter \ref[chap2].
+
+\quad In order to fulfill the requirements of this thesis, my work will revolve around three main
+features to be added. These will be to add vector support for the signals, to extend the support
+for different hardware running on LinuxOS, as well as to test and enhance the support for NuttX RTOS
+using a RISC-V architecture board. 
+
+\quad Vectors are a topic that even children learn in school, due to their very wide usage
+in various fields of mathematics. Most technical fields will use vector mathematics for one
+purpose or another, including even control engineering. Therefore having the ability to work
+with vectors in pysimCoder will be very useful, especially in terms of mathematical operations.
+In chapter \ref[chap3] it will be explained not only why, but also how this feature can be implemented.
+
+\quad In pysimCoder, it is already possible to generate code for real-time Linux targets. Nevertheless,
+a lot of the code necessary for microcontroller hardware operations will be specific to the hardware
+being used. In the case of the MZ_APO educational kit, full support will be added from scratch,
+due to its previous nonexistence. The RaspberryPi already has support, however it will be extended
+for 3-phase motor control demonstration. The hardware and software necessary for these implementations
+will be covered in chapter \ref[chap4].
+
+\quad NuttX is a real-time operating system (RTOS) which is is developed mainly for for small and
+constrained MCU environments. Using the NuttX blocks in pysimCoder, it will be possible to test a control
+system on a RISC-V based board such as the ESP32C3 development kit. In chapter \ref[chap5], I will explain
+how the work done for the RasperryPi extension can be used to demonstrate motion control of a 3-Phase motor,
+even using a small board with weaker capabilities.

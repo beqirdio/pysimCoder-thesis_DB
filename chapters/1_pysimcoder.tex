@@ -1,12 +1,14 @@
+\label[chap2]
 \chap PysimCoder
 
+\qquad All of the work done towards the completion of this thesis is related to the pysimCoder project. Considering this
+the program must be fully explained, from the user interface perspective, as well as the source code perspective. This will
+help to better understand any of the implementations covered in the succeeding chapters.
 
 
+\sec Introduction to the PysimCoder Tool
 
-\sec Introduction to PysimCoder tool
-
-
-\secc Control systems and their design tools
+\secc Control Systems and their Design Tools
 
 “A control system is an interconnection of components forming a system configuration that will provide a desired system
 response.“[\rcite[cntrl-sys-book], chapter 1]
@@ -16,42 +18,43 @@ occurrences that we cannot prevent nor avoid (yet), however we still maintain an
 types of processes that can be used to our benefit. This concept of automated control systems has become the engine behind the
 rapid development of human technology, and concurrently has changed the way humans live and function as a society.\cite[cntrl-sys-book]
 Therefore, as our technology advances further and faster, the necessity for automation solutions and engineers
-will only grow with it. 
+will only grow with it.
 
-\quad Due to the wide range of industries and fields which rely heavily on automation, there are various solutions and tools 
+\quad Due to the wide range of industries and fields which rely heavily on automation, there are various solutions and tools
 which offer the ability to design, simulate, and control real time systems. The software which is used all depends on the application
-and hardware which is being targeted. In an industrial setting, one would probably use TIA Portal \cite[tia-portal] or CODESYS 
+and hardware which is being targeted. In an industrial setting, one would probably use TIA Portal \cite[tia-portal] or CODESYS
 \cite[codesys] to program the controllers of some production line in a factory. For designing and simulating complex electrical circuits,
 AutoDesk Fusion360 \cite[fusion360] would be a perfect environment for high accuracy and modern solutions, while LTspice \cite[ltspice]
 is more useful for simpler analog circuits. 
 
 \quad For many fields of engineering, there is a corresponding software which is used for control design of a certain type of system,
 however for the purpose of this thesis I will focus on solutions which are meant for mathematical simulations, and code generation
-for microcontroller units. These include programs such as MATLAB and Simulink, which when used together make up a very elaborate tool
-for designing a system controlled by a microprocessor unit, and for visualizing the data coming from the physical system in 
+for microcontroller units. These include programs such as MATLAB and Simulink, which make up a very elaborate tool
+for designing a system controlled by a microprocessor unit, and for visualizing the data coming from the physical system in
 real-time. In essence, Simulink is a graphical tool for creating block diagram schematics which represent a particular system using
 mathematics. Furthermore, users of Simulink can create their own blocks, not only for mathematical calculations, but even for control
 of physical hardware. Using this feature, one can combine the mathematical blocks with hardware-related blocks in order to generate
 binary code for execution on a MCU, which can then control different types of hardware connected to it. \cite[simu-coder]
 
 
-\secc PysimCoder: Control systems design and code generation tool
+\secc PysimCoder: Control Systems Design and Code Generation Tool
 
 \qquad Another such tool is PysimCoder, which has been the focal point of my diploma work. Started and developed by professor Roberto
-Bucher from the University of Applied Sciences and Arts of Southern Switzerland, PysimCoder is an open-source graphical 
+Bucher from the University of Applied Sciences and Arts of Southern Switzerland, PysimCoder is an open-source graphical
 tool used for real-time code generation, typically for microcontrollers and PCs which are controlling some physical peripherals.
 Additionally, it can also be used as a simulation tool for simple control schemes. Target operating systems include GNU/Linux with or
 without preemptive-rt kernel, and NuttX RTOS usually for constrained MCU based systems. At its core, it is a Rapid Prototyping Control
-application, similar in style to programs like Simulink and XCos.\cite[pysimcoder-book] This application is still under development, 
-and it has nowhere near the amount of investment or resources that its alternatives use. Nevertheless, this application has some 
-advantages which should be considered for a control system tool. 
+application, similar in style to programs like Simulink and XCos.\cite[pysimcoder-book] This application is still under development,
+and it has nowhere near the amount of investment or resources that its alternatives use. Nevertheless, this application has some
+advantages which should be considered for a control system tool, and thanks to its small size and user-friendly interface it can be
+an ideal starting point for educational purposes in the topic of control systems.
 
 \quad Firstly, it is open-source and freely accessible, which allows complete introspection of the generated code, as well as the
 source code of the application itself. This way, if there is an error or an issue during usage, anyone with a good knowledge of
 programming can go inside the source and fix the bugs as needed. Another great advantage is that it takes much less memory space,
 which results in faster installation and overall usage. At the current moment, the whole project takes up about 100MB of space on my
 hard drive, which is negligible compared to the many gigabytes of space which Simulink requires. This is immediately noticed when
-comparing loading times between the two. 
+comparing loading times between the two.
 
 \quad Probably the best thing about this program is that it uses Python as a programming language for most of the core functions.
 Using many Python libraries which are specialized in control systems mathematics, the application is able to design a schematic on
@@ -63,56 +66,56 @@ host running PysimCoder, and for the target running the generated code. [\rcite[
 containerization techniques used in computers today, the program can even be run in Windows OS, or Mac OSX [\rcite[pysimcoder-book],
 chapter 8]. The program is so light and accessible that you can really run it from any consumer-level operating system, with barely
 any strain on the CPU. This, in combination with the free and open-source nature of the program, makes it perfect for the software
-requirements of the future. 
+requirements of the future.
 
 \quad It is obvious by now that the paid and closed-source alternatives will have more features, stronger software stability, higher
 precision, and overall better performance. Nevertheless, pysimCoder still has a chance to become just as good, and still remain free
 and open-source. This will depend on students and researchers such as myself who will choose to develop further features and
 abilities to the program. One feature which pysimCoder would highly benefit from is being able to generate and use vector signals.
-This is something that Simulink already has full support for, therefore having it here will be one step further to a 
+This is something that Simulink already has full support for, therefore having it here will be one step further to a
 professional-level software, with virtually no financial cost.
 
 \quad In the next chapter, I will be explaining my journey to the extension of pysimCoder for support of vector
-signals and blocks with vector operations. Before that however, I must explain how the program works internally, and show the 
+signals and blocks with vector operations. Before that however, I must explain how the program works internally, and show the
 code-generation path from Python to C-code. This explanation will help to better understand the logic behind my implementation
 of the vector feature, as well as the other features added based on the requirements of this thesis.
 
 
 
-\sec Code generation path of pysimCoder
+\sec Code Generation Path of pysimCoder
 
-\qquad In order to fully understand the implementation of the features which I have added in the pysimCoder project, 
+\qquad In order to fully understand the implementation of the features which I have added in the pysimCoder project,
 I must initially explain how the source code is organized and how it functions. When working on an open-source project,
-the greatest advantage is that you have complete access to the whole source of the application, however this comes 
-with great risk as well. Any small change in the core functionality of the program can lead to unexpected results 
-and errors. Therefore, the developer must always carefully analyze and understand the source code before they start 
-making changes and adding new functions. 
+the greatest advantage is that you have complete access to the whole source of the application, however this comes
+with great risk as well. Any small change in the core functionality of the program can lead to unexpected results
+and errors. Therefore, the developer must always carefully analyze and understand the source code before they start
+making changes and adding new functions.
 
 
 \secc Graphical User Interface of pysimCoder
 
-\qquad From the front-end perspective, pysimCoder is a graphical tool used for designing block diagram schematics 
-for the purpose of simulation and real-time code generation. Knowing this, it is only natural that I give a small preview 
-of the GUI of the application. As seen in the image below, the pysimCoder tool is very similar to its larger and more costly 
-counterparts such as Simulink or xCos as far as the graphical editor is concerned. In fact, the editor itself is based on the 
+\qquad From the front-end perspective, pysimCoder is a graphical tool used for designing block diagram schematics
+for the purpose of simulation and real-time code generation. Knowing this, it is only natural that I give a small preview
+of the GUI of the application. As seen in Figure 2.1, the pysimCoder tool is very similar to its larger and more costly
+counterparts such as Simulink or xCos, as far as the graphical editor is concerned. In fact, the editor itself is based on the
 "PySimEd" project \cite[pysimed] and the "qtnodes-develop" project \cite[qtnodes], in combination with a lot of common blocks
 from PyEdit. [\rcite[pysimcoder-book], chapter 7]
 	
-\medskip \clabel[pysim-gui]{PysimCoder's front-end GUI}
-\picw=12cm \cinspic figures/pysimCoder-GUI.png
+\midinsert \clabel[pysim-gui]{PysimCoder's front-end GUI}
+\picw=14cm \cinspic figures/pysimCoder-GUI.png
 \caption/f Simple preview of PysimCoder's graphical tool
-\medskip
+\endinsert
 
-\quad The application is divided in two windows: the library and the diagram canvas. On the left, we have the library window 
-which contains all the blocks which are supported on pysimCoder. From here the user will be able to drag and drop different 
-types of blocks onto the canvas, depending on their control needs. Then on the right, there is the canvas window where the user 
+\quad The application is divided in two windows: the library and the diagram canvas. On the left, we have the library window
+which contains all the blocks which are supported on pysimCoder. From here the user will be able to drag and drop different
+types of blocks onto the canvas, depending on their control needs. Then on the right, there is the canvas window where the user
 will be able to interconnect all the blocks that were added there from the library. On the top of this window there is a toolbar
 and a menu bar from which the user is able to perform a handful of operations necessary for their design. The most note-worthy
 buttons used are: "Generate C-code", "Simulate", and "Settings". These operations are essential to the code-generation and
 simulation functions of the application.
 
-\quad Regardless of the complexity of the diagram, the work flow (set of operations) will always be the same getting from design 
-to code generation. The blocks are dragged to the canvas from the library, then interconnected based on the user's design. 
+\quad Regardless of the complexity of the diagram, the work flow (set of operations) will always be the same getting from design
+to code generation. The blocks are dragged to the canvas from the library, then interconnected based on the user's design.
 Once the blocks are nicely organized and connected, the user will then have to tune any block parameters that must be changed for
 their particular system. After verifying the correctness of the diagram, the user will have to choose a target-specific template
 Makefile which will tell the program which compiler to use for the current project. Finally, the user must save the project, and
@@ -122,66 +125,94 @@ pysimCoder application is running. [\rcite[pysimcoder-book], chapter 7]
 
 \quad Every instruction given above will be related to the next part of this section, where I will explain in simple terms
 how the source code is reacting to the different operations we are performing in the graphical tool, and what is the final result
-of the code generation performed by the application. 
+of the code generation performed by the application.
 
+\label[ch2s2sub2]
+\secc Source Code of pysimCoder
 
-\secc Source code of pysimCoder
-
-\qquad The core functionality of the pysimCoder project is enabled  by three main languages: Python, C , and Makefile. 
+\qquad The core functionality of the pysimCoder project is enabled  by three main languages: Python, C , and Makefile.
 "Python" is the engine behind the graphical tool, and the back-end processes related to the operation of the tool, and also handles the
 C-code generation. The generated "C code" will contain the whole system design with all of its blocks, and their respective parameters
 and interconnections. "Makefile" is used for organizing the compilation of the .c files of the blocks, installing all modules
 necessary for use of pysimCoder, as well as for producing the final executable file which is the end result of the design made in the
-GUI. Figure 2.2 gives a more simplistic view of the code generation path, from GUI to the executable generation. 
+GUI. Figure 2.2 gives a more simplistic view of the code generation path, from GUI to the executable generation.
 
-\medskip \clabel[pysim-code-path]{PysimCoder's Code Generation path}
-\picw=12cm \cinspic figures/pysimCoder_code-path_roberto_nuttx.png
-\caption/f Code path from GUI to executable file
-\medskip
+\midinsert \clabel[pysim-code-path]{PysimCoder's Code Generation path}
+\picw=14cm \cinspic figures/pysimC_codepath.pdf
+\caption/f Code path from GUI to executable file, inspired by presentation from Prof. Roberto Bucher \cite[pysim-nuttx-pres].
+\endinsert
 
 \quad  Each block from the Library window has three main components which complete its functionality in the code. Firstly, before any
 code generation takes place, there is the .xblk file which holds all the info of the block which the graphical interface can
 interpret. These include necessary information such as number of inputs and outputs, assignment of editable parameters along with
-their default values, name of the block, and also name of the .py file which will be essential to the further processing of the 
+their default values, name of the block, and also name of the .py file which will be essential to the further processing of the
 block.
 
 \quad The reference to the .py file specified in the .xblk file is the next step once we want to move towards code generation.
-This .py file is responsible for calling a python class named RCPblk, whose purpose is to create an object from the current state 
+This .py file is responsible for calling a python class named RCPblk, whose purpose is to create an object from the current state
 of the block to be used in the main code connecting it to the other components of the schematic.
 
 \quad Last but not least, the block needs a C-code function that will be used in the main C code generated by Python. This
-function will contain the actual code necessary for achieving the desired output of the block. 
+function will contain the actual code necessary for achieving the desired output of the block.
 
 \quad Now I will break down the path of the source code based on the work-flow presented earlier in the GUI. In the initial phase,
-the design of the schematic is taking place. This includes everything from dragging and dropping blocks onto the editor, making 
+the design of the schematic is taking place. This includes everything from dragging and dropping blocks onto the editor, making
 connections between them, setting their parameters and choosing the simulation settings. During the design phase, various Python
 tools from the path "/toolbox/supsisim/src" are being utilized to run the graphical tool, and to ultimately save the state of the
 current project into a file with .dgm extension. This .dgm file will contain everything known about the design before code
 generation takes place, which mainly includes the edited .xblk of each block, the connections between the blocks, and the
-simulation settings. 
+simulation settings.
 
 \quad Once the design of the schematic is completed and saved into a .dgm file, the code generation can finally take place.
 In this phase, the same tools from the path "/toolbox/supsisim/src" will be used. When the "Generate C-code" button is pressed
-in the toolbar, the supsisim toolbox will first create a file called "tmp.py" and store it in the working directory of the project.
-This .py file will be responsible for collecting all the C-functions of each block, and using them to generate the main C-code.
-Then it will create a folder in the same path, and it will store there the main C-code that was generated, and also a Makefile. 
+in the toolbar, the supsisim toolbox will create a file called "tmp.py" in the working directory, and run it in a separate python3
+instance. This script will be responsible for collecting all the blocks and their interconnections, and using them to generate the main
+C-code. Then it will create a folder in the same path, and it will store there the main C-code that was generated, and also a Makefile.
 The last step of the "tmp.py" file will be to call the Makefile, which will finally compile the generated C-code into a binary
-executable. This binary file is the end-product which is obtained from the simulation design, and is the only file necessary 
-for the execution of the simulation on the target-hardware. 
+executable. This binary file is the end-product which is obtained from the simulation design, and is the only file necessary
+for the execution of the simulation on the target-hardware.
 
-\medskip \clabel[pysim-repo]{PysimCoder's Main Repository structure}
-\picw=12cm \cinspic figures/pysimCoder_repo.png
-\caption/f Source code organization in main repository of pysimCoder
-\medskip
+\quad The representation seen in the following page shows the directory tree of the pysimCoder project. Most of the core work
+being done by the program is happening at the "toolbox" folder. In the "resources" folder there is all the .xblk and .py files
+of each block, as well as all the images used for the blocks' thumbnails. For all code generation purposes of the program, the
+folder "CodeGen" will be used. Here lies all the C files containing the functions specific to each block (including their
+dependencies), as well as all the template Makefiles used for the various targets that are supported. These three directories are
+essential to the pysimCoder application, and work closely together during the path from the GUI to the binary executable generation.
 
-\quad Above we can see the root filesystem of the pysimCoder project. Most of the core work being done by the program is
-happening at the "toolbox" folder. In the "resources" folder there is all the .xblk and .py files of each block, as well as
-all the images used for the blocks' thumbnails. For all code generation purposes of the program, the folder "CodeGen" will be
-used. Here lies all the C files containing the functions specific to each block (including their dependencies), as well
-as all the template Makefiles used for the various targets that are supported. These three directories are essential to the
-pysimCoder application, and work closely together during the path from the GUI to the binary executable generation.
+\quad Although there are a few parts of the source code I have not explained, there is already enough information given to be able
+to clearly understand the different implementations and changes that will be made in the  forthcoming chapters. Some topics which
+might be more relevant to a certain feature, will be explained in further detail in its corresponding chapter.
 
-\quad Although there are a few parts of the source code I have not explained, there is already enough information
-in this chapter to be able to clearly understand the different implementations and changes that will be made in the 
-forthcoming chapters. 
-
+\begtt
+-BlockEditor		# Python programs
+-Book			# Documentation
+-CodeGen		# C resources for blocks and simulations
+	-Common
+	-linux_mz_apo
+	-LinuxRT
+	-nuttx
+	-Raspberry_PI
+	-SAMD21
+	-src
+	-STM32H7
+	-templates	# Makefiles for targets
+-DriverNRT
+-resources
+	-blocks
+		-blocks		# .xblk files of block
+		-Icons
+		-rcpBlk		# python files of block
+	-icons		# block thumbnails
+-Tests
+	-ControlDesign		# Examples
+		-BallOnWheel
+		-Disks
+		-DisksAndSpring
+		-InvertedPendulum
+		-PidExample
+-toolbox			# Python Control and Simulation Libraries
+	-myEnv
+	-supsictrl
+	-supsisim
+-userLib
+\endtt

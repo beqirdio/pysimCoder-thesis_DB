@@ -7,12 +7,37 @@
 \authorinfo {beqirdio@gmail.com}
 \supervisor {Ing. Pavel Píša, Ph.D.}
 \date {May 2022}
-\abstractEN {AbstractEN
+\abstractEN {
+Control systems engineering plays a crucial role in the rapid development
+of human technology, hence the demand for more user friendly and open-source
+tools for systems design is significantly growing. PysimCoder is a Rapid Prototyping
+Control application, which can be used to graphically design control systems
+schematics for the purpose of generating real time code for different targets. Its
+main advantages are  that it is freely available, open source, and it supports both
+NuttX RTOS and GNU/Linux targets, all of which enhance the educational experience. 
+
+The pysimCoder application is far from being mature, however the further
+extension of the project could be a great win for education, industry, and
+recreation. The main goals of this thesis will be focused on adding new features
+to the project, such as support of vector signals, as well as device support for
+the ESP32C3 (using NuttX RTOS) and Xilinx Zynq based MZ_APO education
+kits (using GNU/Linux). Throughout this document there will be demonstrations of each
+extension that was added, as well as full descriptions of the approaches used to
+implement them.
+
 }
-\abstractCZ {AbstractCZ
+\abstractCZ {
 }
+
 \thanks {
-Thanks to...
+First and foremost, I would like to thank my supervisor for his extensive support
+and mentorship during my journey.
+
+I would also like to thank my colleagues for all the great conversations while we
+were working on our theses. 
+
+Lastly, I would like to thank all my family and friends which have believed in me
+throughout my academic path...
 }
 \declaration {
 I declare that the presented work was developed independently and that
@@ -25,6 +50,13 @@ In Prague 20. 5. 2022
 \signature
 }
 \input biblio/gloss_data
+
+\specification {%
+   \vbox to0pt{\vskip-25mm\centerline{\inspic attach/assignment_bachelor_1.pdf }\vss}
+   \vfil\break
+   \vbox to1pt{\vskip-25mm\centerline{\inspic attach/assignment_bachelor_2.pdf }\vss}
+}
+
 
 \makefront
 

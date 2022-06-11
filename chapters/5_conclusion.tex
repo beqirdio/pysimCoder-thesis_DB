@@ -1,1 +1,52 @@
 \chap Conclusion
+
+\qquad Overall, the main requirements of the thesis have been met, according to all the work
+presented in the previous chapters. Nevertheless, there are a lot of areas which can be
+improved on or explored in the future. This is partly due to the wide variety of features
+that have been added to pysimCoder as a part of this work. These notes will be described below
+based on the feature in question. 
+
+\quad It was already known beforehand that adding vector signals to pysimCoder is an experiment
+rather than a full implementation. Therefore, any initial work done for this feature will for
+sure have room for optimization and improvements. At the current state of the vector feature,
+pysimCoder is able to propagate vector signals properly. In the first version of the attempt,
+all the dimensions are set manually, while in the second version there is already an algorithm
+which can set the dimensions automatically. Both of these versions represent the basic
+functionality of vector signals in pysimCoder.
+
+\quad First, it is worth mentioning that both versions of the vector support need more testing,
+preferably on more complex diagrams. This could ensure the scalability of the current code for
+any diagram complexity, not just for the smaller ones. The algorithm which was applied in order
+to set the dimensions needs a lot of optimization and restructuring. Although it works for
+relatively simple diagrams, there will be many cases where the algorithm will not produce the
+correct dimensions. This is due to the possibly unsorted way that it propagates the dimension
+values in a more complex system. The placement of the algorithm's code is also questionable.
+Currently it is set in the code generation function, however this can even be applied before
+code generation, in the case that the dimension values are also given in the .xblk component of
+the block (currently not set). Another question is if this algorithm should be optimized, or
+whether it should be exchanged for a completely new approach of setting dimensions. The future
+possibilities for this initial vector feature are endless.
+
+\quad Two different microconrollers running some form of LinuxOS have been tested and extended
+in pysimCoder, using existing Simulink projects as reference. For the Zynq based board, a whole
+new library has been added containing not only the implemented hardware blocks, but even the
+compilation specifications (Makefile) relevant to this target. This is rather exciting, since
+the MZ_APO educational kit is used in a course offered by the Czech Technical University, and
+now it can be demonstrated for the first time using pysimCoder. Generally, the new "motor" and
+"encoder" blocks function as expected, and don't leave much room for changes. However it would be
+useful to have more blocks for the MZ_APO kit, which is something to think of for the future
+extension of this board. There was already pre-existing support for the RaspberryPi boards,
+therefore only the new block was added with no further modifications. The demonstration of
+controlling a 3-phase PMSM using RaspberryPi in pysimCoder has already showed that the block is
+working fine and needs no major editing. 
+
+\quad Last, but not least, the ESP32C3 board was able to control a peripheral using a combination
+of NuttX RTOS and pysimCoder. The code necessary for controlling a 3-phase motor with a NuttX
+device was taken from the previously implemented RaspberryPi demonstration, and then edited for
+compliance with the RTOS. When using a feed-forward model of the system, the tiny RISC-V based
+board managed to do some initial PMSM control. Unfortunately, the same block placed in a feedback
+model with PID control does not function well at all, and even shows instability in the motion of
+the motor. This is due to the hardware limitation of the ESP32C3 board, which cannot achieve a
+high enough sampling frequency for proper motion control. This is something that can be explored
+and researched in the future, in order to find out whether the board can in fact reach those
+necessary frequencies for real feedback control. 

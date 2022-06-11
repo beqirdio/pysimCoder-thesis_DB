@@ -1,4 +1,5 @@
-\chap Testing and extending NuttX RTOS support in pysimCoder
+\label[chap5]
+\chap Testing and Extending NuttX RTOS Support in pysimCoder
 
 
 
@@ -51,7 +52,7 @@ their own support on the project, either locally on their computer, or uploaded 
 repository. 
 
 
-\secc Existing support in pysimCoder
+\secc Existing Support in pysimCoder
 
 \qquad In pysimCoder, there is already existing support for NuttX targets. This means that any
 microcontroller running NuttX, can also execute binary code generated from the pysimCoder
@@ -59,7 +60,7 @@ application. That is an amazing feature, since for most use cases pysimCoder has
 blocks which are specific to a certain microcontroller or architecture. In the NuttX blocks,
 the code will be identical no matter what CPU brand is used. 
 
-\quad NuttX has many features involving the manipulation of hardware peripherals, therefore
+\quad NuttX has many features involving the control of hardware peripherals, therefore
 these functions can be used as pysimCoder blocks. In fact there is already some blocks made
 for NuttX, such as an ADC, DAC, Digital Input/Output, Encoder, PWM, and a DHTXX sensor. Some
 general pysimCoder blocks can also be used, including the TCP, UDP, UART, and CAN communication
@@ -81,7 +82,7 @@ NuttX \cite[nuttx-pysim].
 
 
 
-\sec ESP32C3 board with NuttX
+\sec ESP32C3 Board with NuttX RTOS
 
 \qquad It would be of good interest to the pysimCoder project to somehow test a microcontroller
 which uses the RISC-V architecture. NuttX already has support for a board with this architecture,
@@ -90,7 +91,7 @@ describe the simple testing and configuration of the selected hardware, both in 
 pysimCoder. 
 
 
-\secc Hardware introduction
+\secc Hardware Introduction
 
 \qquad One of the RISC-V boards which is supported in NuttX is the ESP32C3 produced by the
 Espressif company. Fortunately, the Espressif representation in Brno (Czech Republic) was kind
@@ -103,13 +104,13 @@ the WiFi and Bluetooth antenna, and many more supported peripherals. The specifi
 hardware can be seen below, while the full details can be found online. \cite[esp32c3-devkit]
 \cite[esp32c3-datasheet]
 
-\medskip \clabel[esp32c3-board]{ESP32C3-DevKitM-1 board presentation}
+\midinsert \clabel[esp32c3-board]{ESP32C3-DevKitM-1 board presentation}
 \picw=14cm \cinspic figures/esp32c3-devkit-board.png
 \caption/f The different components of the ESP32C3-DevKitM-1 board are presented with labels.
 On the left is the main chip, while on the right is the micro-USB connection. The pin headers
 can be found on the top and bottom. Other components include RGB LED, Reset and Boot buttons,
 5V to 3.3V LDO and more. 
-\medskip
+\endinsert
 
 \begitems
 \style 0
@@ -140,21 +141,313 @@ educational automation. This is one field that was not yet mentioned as an examp
 datasheet of the device. \cite[esp32c3-datasheet]
 
 
-\secc Installing NuttX RTOS on board
+\secc Installing NuttX RTOS on ESP32C3
+
+\qquad Before trying the ESP32C3 on pysimCoder, it will be necessary to load and test the
+NuttX RTOS on the board. To do this, the project must first be cloned from the existing Git
+repository \cite[nuttx-source] using the following command:
+
+\begtt
+git clone https://github.com/sonydevworld/spresense-nuttx.git nuttx
+git clone https://github.com/sonydevworld/spresense-nuttx-apps.git apps
+\endtt
+
+\quad Considering there is already support for the ESP32C3 on NuttX, some examples can be
+directly loaded. For each board on NuttX there is a corresponding directory in the source,
+which is full of ready-made configuration files for that specific hardware. These setup files
+can be loaded using a shell script, and can even be modified after based on the desired features.
+
+\quad There are a few different ways to approach the configuration of NuttX. The best way to
+initialize the setup is to run a ready made script who's purpose is to load a pre-made
+configuration file ("defconfig"). Once that is loaded, there are two graphical applications which
+can help to edit the initially loaded configuration, in order to add or remove features based on
+the project needs. The first graphical tool can be called by "make menuconfig" command, which will
+bring up an interactive menu in the terminal. Here the features are presented in a more
+user-friendly way. There is also another tool called by "make qconfig" command, however this will
+actually load every single feature possible in the NuttX compilation, therefore it is mostly used
+for searching through the variables and setting them manually. Once finished editing, the
+configuration can actually be saved into a "defconfig" file, which can then be loaded by the
+aforementioned shell script as an initial setup.
+
+\quad Another possibility can be to find all the configuration variables which are needed, and
+their properties, and write them into a "defconfig" file manually. Then theoretically this file can
+in fact be loaded by the shell script, although it is not recommended by NuttX to do so. A more clean
+way will always be the method discussed in the last paragraph. Therefore, that method will be used to
+initially test NuttX on the RISC-V board, as seen in the following steps given.
+
+\begtt
+
+./tools/configure.sh esp32c3-devkit:nsh
+make menuconfig
+make
+
+\endtt 
+
+\quad For the purpose of initial simplicity, the example which has been chosen to be pre-loaded is a
+NuttX application called "Nuttshell". This is a terminal console for NuttX devices, which can be
+accessed usually over a serial connection (UART or USB). If this tiny shell console can be opened
+in the host computer, then it proves that the NuttX RTOS has been successfully loaded to the board.
+Before this is verified, the graphical tools can be used to add more features to the compilation (as
+seen in second command above). If the desired configuration is ready and saved, the "make" command
+can be executed in order to perform the compilation of the whole NuttX RTOS in one binary file. In the
+case that the configuration needs to be saved for future use, it can be saved into a defconfig file
+using the following command.
+
+\begtt
+make savedefconfig
+\endtt
+
+\quad It seems that there were no issues while loading the RTOS in the ESP32C3 board. The command
+line terminal did in fact succeed to connect to a serial connection on the host computer, and even
+some other examples were added, although not tested. Now that the installation of NuttX has been
+verified and described, the actual hardware peripherals will be tested in pysimCoder. The integration
+to pysimCoder will be covered in the remaining parts of this chapter. 
+
+\secc Enabling and Testing pysimCoder on ESP32C3
+
+\qquad As mentioned beforehand, there is already a full documentation on how to integrate NuttX with
+pysimCoder \cite[nuttx-pysim]. Using that guide, the existing configuration set up for ESP32C3 (in
+previous subsection), can be modified so that it can also deploy pysimCoder code. In other words the
+two configurations will somehow be merged, so that they are compatible with each other. 
+
+\quad The current ESP32C3 configuration should be opened, preferably with "qconfig" tool, and each
+"CONFIG" variable seen in the online documentation should be set manually. Once the changes are saved,
+the source should be compiled, and ultimately exported to pysimCoder (see commands below) in the
+"/CodeGen/nuttx" directory. When the "CodeGen/nuttx/devices" folder is recompiled, pysimCoder will be
+ready to generate code for the ESP32C3. Unfortunately there was an issue encountered regarding a missing
+header object file specification in the exported build. This was solved by specifying the header file
+manually, although this is not a general solution. \cite[nuttx-pysim]
+
+\begtt
+make qconfig
+make
+make export
+\endtt
+
+\quad With the new configuration, the ESP32C3 board will be able to execute some common blocks of
+pysimCoder, mostly of those with mathematical functions. However, to be able to test the NuttX blocks
+themselves, which are mostly hardware related, some additional features must be enabled in the
+configuration which are specific to the board. To find which variables should be set for this, the
+purpose of the block should be reviewed. For example for the ADC block, the term "ADC" should be searched
+in the "qconfig" tool. If the variable is found and it is specific to the board, then it should be set
+to ensure the proper functioning of the block. This example should be followed for all the NuttX blocks
+which are used in the system. Some of these variables can be seen in the code below, taken from the
+"defconfig" file. Certain features below are not set for an entire NuttX block, however they may be
+related to the proper functioning of a block. 
+\begtt
+...
+CONFIG_ESP32C3_ADC1=y
+CONFIG_ESP32C3_ADC1_CHANNEL0=y
+CONFIG_ESP32C3_GPIO_IRQ=y
+CONFIG_ESP32C3_LEDC=y
+CONFIG_ESP32C3_LEDC_TIM0=y
+CONFIG_ESP32C3_SPI2=y
+CONFIG_ESP32C3_SPI2_CLKPIN=2
+CONFIG_ESP32C3_SPI2_MISOPIN=6
+CONFIG_ESP32C3_TWAI0=y
+CONFIG_ESP32C3_TWAI0_CLKOUT=y
+CONFIG_ESP32C3_TWAI0_RXPIN=5
+CONFIG_ESP32C3_TWAI0_TXPIN=4
+CONFIG_ESP32C3_UART1=y
+CONFIG_SPITOOL_DEFWORDS=16
+CONFIG_SYSTEM_SPITOOL=y
+...
+\endtt
+
+\quad Considering that all of the configuration has been finally set, and there are no changes to be made
+in the NuttX environment anymore, a pysimCoder-generated application can be tested on the ESP32C2 board.
+During my testing of these blocks I encountered barely any issues at all, since the NuttX blocks are general
+and the only debugging can be done in the configuration file of the RTOS. By verification of these fairly
+simple blocks, it is possible to move on to a larger demonstration using this RISC-V board. The details
+of this demo will be covered in the next (and last) section of this chapter. 
 
 
-\secc Enabling and testing pysimCoder on board
+\sec Demonstration of Control using ESP32C3 with NuttX and pysimCoder
+
+\qquad One of the main goals of this thesis is to demonstrate the usage of pysimCoder and NuttX by
+controlling some peripheral. In the previous chapter, an example of a RaspberryPi controlling a 3-phase PMSM
+was demonstrated. In this section it will be described how that board can be switched for an ESP32C3, and
+still manage to control the 3-phase motor, which can be achieved using NuttX and pysimCoder together.
+
+\secc Hardware Requirements
+
+\qquad The general idea of this demonstration is not too complicated. Motion control of a 3-phase PMSM has
+already been proven to be possible using pysimCoder with the RaspberryPi board. Fortunately, the ESP32C3 board
+already has SPI support, therefore it would be able to communicate with the FPGA expansion unit. It also has
+a clock generator with a frequency of 40 MHz, which can be fed into the FPGA board. There is even 3.3V outputs
+from the ESP32C3, which will be able to power the FPGA chip. All of this means that the RaspberryPi can in fact
+be switched with this RISC-V board, at least in terms of hardware connections. 
+
+\qquad In the RaspberryPi version of this demonstration, the 40 external pins of the board fit directly into
+the 40-pin connector of the FPGA board, even though many pins were unused. This was designed in such a way, so that
+the implementation of the hardware will look more clean. In the case of using an ESP32C3 board, instead these pins
+will have to be routed using jumper cables. In addition to that, this version will also use the CAN protocol
+in order to transmit signals from pysimCoder, therefore some additional hardware will be used. The full list of
+required hardware for this demonstration is listed below. 
+
+\begitems
+\style 0
+* ESP32C3-DevKitM-1
+* FPGA expansion unit
+* 3-Phase Motor Driver
+* 3-Phase Permanent Magnet Synchronous Motor
+* UART-to-USB cable
+* USB2CAN converter
+* WCMCU-230 - CAN transceiver with LVTTL Rx and Tx signals
+* Jumper cables
+* Power supply (12-24)VDC
+\enditems
+
+\midinsert \clabel[esp32c3-pmsm]{PMSM motion control with ESP32C3 board}
+\picw=14cm \cinspic figures/esp32c3_pmsm.jpg
+\caption/f Hardware setup for 3-phase PMSM motion control using ESP32C3 with Nuttx RTOS. Code for controlling
+the motor was generated by pysimCoder. Hardware connections are based from same demonstration for RaspberryPi.
+\endinsert
+
+\quad When doing the same demonstration for the RaspberryPi, the microcontroller could simply be placed on top
+of the FPGA expansion board, since both of them have 40-pin connectors. In the case of the
+ESP32C3, there are only 30 pins and they are designed differently from the FPGA connectors. As seen in Figure
+5.2, the connection between the two devices will be made using jumper cables instead. Only the necessary pins
+of the expansion board will be connected to the corresponding pins on the microcontroller, using the mapping
+(available online \cite[rpi-fpga-pins]) which is specific to the FPGA mode that controls a 3-phase motor. 
+
+\quad Even though the ESP32C3 contains all the pins necessary to connect to the FPGA, some communication with
+the host computer still needs to be established. This will help the user to be able to read, and hopefully
+visualize the data coming from the device, as well as to access the NuttShell terminal which runs the main
+program. For accessing the NuttShell, a serial connection (UART) must be established with the host. This can be
+achieved easily using a UART-to-USB cable, which can connect to most computers. 
+
+\quad For receiving data from the microcontroller, the CAN protocol has been selected. Another student, Jan Charvát,
+had been working on the ESP32C3 board for their thesis, on the topic of "NuttX RTOS CAN Bus Driver for Espressif
+ESP32C3" \cite[esp32c3-twai]. Therefore we have taken this opportunity to test their work on my demonstration. The
+additional hardware necessary for CAN communication on the ESP32C3, as well as their respective pin mappings,
+have been provided by Mr. Charvát. This includes a WCMCU-230 CAN module, a small peripheral which enables
+connection to a USB2CAN converter (also included). These two devices will complete the CAN connection from the
+microcontroller to the host computer. All the specific pin connections can be seen in Figure 5.3.
+
+\midinsert \clabel[esp32c3-pmsm-pins]{Pin assignment of PMSM motion control with ESP32C3 board}
+\picw=14cm \cinspic figures/fpga_esp_pins.pdf
+\caption/f Pin assignments for all connections necessary to do motion control of 3-phase PMSM. In black is Ground
+connections, in red the voltage connections, in green the FPGA connectors, in blue the WCMCU-230 connections, orange
+are for the CAN, and purple is for the serial connection. 
+\endinsert
+
+
+\secc Adaptation of RaspberryPi Project
+
+\qquad From the previous subsection it is clear that the interaction between the FPGA expansion unit and the
+microcontroller will ultimately be the same, as long as the FPGA is not set to a different mode or reprogrammed.
+Therefore, the C functions which are related to this hardware should also remain the same, with minor changes
+specific to the operating system running on the microcontroller unit. For the current application in question,
+the code used in the RaspberryPi PMSM block (described in section \ref[ch4sec2]) can be used as a base for the new NuttX
+implementation. 
+
+\quad In this case, there will be changes even to the dependencies of the block source code. Considering this,
+a deeper understanding of the RaspberryPi code must be sought. In chapter \ref[chap4], it was mentioned that the C file
+which was converted from a Simulink block to a pysimCoder block must specify the same header files.
+Additionally, it was also necessary for those files to be copied onto the pysimCoder repository so that they
+can be compiled together. Most of the header files are standard C libraries, however the last three are
+specific to the RaspberryPi (as seen in the code fragment below).
+
+\begtt
+...
+#include "rpi_gpio.h"
+#include "rpi_spimc.h"
+#include "rpi_gpclk.h"
+...
+\endtt
+
+\quad For the ESP32C3 implementation, the clock generator is set up by the NuttX configuration, while the direct
+GPIO access and configuration are not needed at all. Only the SPI functionality will be taken in consideration for
+this adaptation, and since these are not common RaspberryPi libraries, the code must be analyzed thoroughly. In the
+"rpi_spimc.h" file, there is a C structure "spimc_state_t" which holds all the values related to the SPI
+interaction, including some related to the current, PWM, IRC, and HAL sensors. Besides that there are also
+some constants defined at the top, and two C functions are referenced at the bottom. 
+
+\quad The two C functions are "spimc_init()" and "spimc_transfer", which are located in the "rpi_spimc.c" file.
+Most of the time these functions are operating on the structure elements from the .h file, and then sometimes
+an "ioctl()" request is made, which is common for SPI communication. The header files should also be taken
+account of in this file, since some of them are specific to Linux. In the main C functions of the block, there
+are also a lot of operations on the "spimc_state_t" structure, as well as some calls to the two functions
+described above. 
+
+\quad After some short analysis of the RaspberryPi demonstration, it is clear that some changes will need to
+be made for the following conversion to happen. First, all the relevant files should be duplicated in the NuttX
+folder in pysimCoder, and their names should be changed to reflect some connection to NuttX. For the most part,
+the main C file of the block will be identical, with the only difference being in the header files and some
+RaspberryPi specific commands. As previously discussed, the ESP32C3 clock can be setup in the NuttX
+configuration and the GPIOs are not used at all, therefore only the SPI related header file will remain in the
+code, and it should carry the new name that was made for it. Then any of the functions used in this file which
+would be referenced by the removed header files, should also be removed. The SPI header file itself can be copied
+without any changes, since the C structure within will be used in the same way.
+
+\quad The most notable changes in fact will be happening in the "rpi_spimc.c" file. Just earlier it was mentioned
+that this file imports some native Linux header files. These files are directly related to the SPI specifications
+of the host operating system, therefore they can be switched for the NuttX SPI header files instead (can be found
+in the source). Most importantly, the "ioctl()" function parameters must be edited to reflect the host OS
+specifications for SPI transfers that use this function. These specifications can be found in "spi_transfer.h",
+and have been used to convert the "ioctl()" request to be compatible with NuttX (seen in the code below). The
+first parameter remains unchanged. The second parameter is an OS-specific constant used for SPI exchange operation
+requests, while the last one is pointing to a C structure which contains all the information regarding the SPI
+transfer taking place. Within the "spi_sequence_s" structure is specified information like the SPI mode, number of
+bits, and SPI frequency, as well as another structure inside it ("spi_trans_s") which carries other info such as the
+delay, the size of the transfer, and very importantly, the Tx and Rx buffers. All of the structures and constants
+necessary have been found in the "spi_transfer.h" file, and can be used as NuttX equivalents for this specific
+application. The result is the following "ioctl()" request, with the necessary initialized structures. 
+
+\begtt
+struct spi_trans_s transs = {
+    .delay = (useconds_t)spimc_delay,
+    .nwords = SPIMC_TRANSFER_SIZE,
+    .txbuffer = (void*)tx,
+    .rxbuffer = (void*)rx };
+struct spi_sequence_s tr = {
+	.dev = 23,
+	.mode = 0,
+	.nbits = spimc_bits,
+    .ntrans = 1,
+    .frequency = spimc_speed,
+    .trans = &transs };  
+ret = ioctl(spimcst->spi_fd, SPIIOC_TRANSFER, &tr);
+\endtt
+
+\quad These are all the changes regarding the C files which are necessary for the new NuttX block. The .xblk and
+.py components of the block can be copied directly from the Raspberry Pi block, only changing the names of the files
+and the descriptive comments. As a last step, the configuration of NuttX must also be slightly extended for the
+demands of this block. Some features that must be added include SPI, TWAI, and CAN related configuration variables.
+Then the same steps as given in the previous section should be followed in order to save this new configuration to
+the pysimCoder source.
+
+\secc Demonstration of Simple PMSM Motion Control with ESP32C3
+
+\qquad It should be known by now that a new block can only be tested when placed in a new diagram. Considering that
+the block is identical to the RaspberryPi block (see section \ref[ch4sec2]), then in theory the same diagrams can be used.
+During prior testing on this new NuttX block on the ESP32C3, it has been found out that designs using a PID controller
+cannot be used. Apparently the tiny RISC-V board cannot handle the sampling frequencies necessary for proper PID
+control. For this reason a similar control diagram without a PID block will be used as a base. This diagram is meant to
+perform simple synchronous motor control without feedback, only by following the rotating magnetic field. The TCP blocks
+must also be replaced with CAN blocks, since the communication method to the host has changed.
+
+\quad As seen in Figure 5.4, the terminal on the right is receiving data using CAN protocol, and printing it in
+hexadecimal format. By a basic inspection of these hexadecimal numbers, it can be noticed that the values are
+changing as expected from the signal it's connected to in pysimCoder. The 3-Phase motor on the other hand is also
+reacting as expected from the design, therefore it can be said that the demonstration was successful. Again, it
+must be noted that there were some issues when attempting to use a PID controller, due to a sampling frequency
+limitation of the ESP32C3 board. This is one issue to be explored in the future, in order to understand the
+full limitation of the hardware. 
+
+\midinsert \clabel[esp32c3-pmsm-dgm]{PysimCoder diagram for PMSM motion control with ESP32C3 board}
+\picw=14cm \cinspic figures/pysim_nuttx_3pmot_spi_can.png
+\caption/f Screenshot demonstrating motion control of 3-Phase PMSM using ESP32C3 with NuttX RTOS. Terminal on right
+shows a CAN receiver printing in hexadecimal format, which represents the actual location from IRC input, and sector
+value obtained from the HAL sensors on the motor. The window in the middle is for pysimCoder terminal output. Diagram
+is similar to RaspberryPi PMSM motion control demo, but uses CAN instead of TCP for communication. 
+\endinsert
 
 
 
-\sec Demonstration of control using ESP32C3 with NuttX
-
-
-\secc Hardware requirements
-
-
-\secc Translation of RaspberryPi project
-
-
-\secc Example of real usage
-
+\quad Nevertheless, this demonstration has proved that the RaspberryPi can be replaced in a 3-phase motor control
+system, even with a RISC-V board which is the size of a human thumb. Of course, the performance will not be as good,
+considering that there is quite a large difference in the technical specifications of the two. Furthermore, NuttX
+RTOS was used in combination with pysimCoder, to demonstrate the abilities of the ESP32C3 development board. This
+particular setup was very important for the completion of this thesis. 
